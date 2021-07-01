@@ -60,3 +60,7 @@ jobs:
           app-name: 'tetris-clone'
           slot-name: 'production'
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ba3d879df28c472d8865f0591c14832f }}
+      
+      - name: 'Start web socket'
+        run: |
+          python main.py
