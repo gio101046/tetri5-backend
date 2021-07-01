@@ -48,6 +48,11 @@ jobs:
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
 
     steps:
+      - name: Set up Python version
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.9'
+
       - name: Download artifact from build job
         uses: actions/download-artifact@v2
         with:
@@ -62,6 +67,7 @@ jobs:
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ba3d879df28c472d8865f0591c14832f }}
       
       - name: 'Start web socket'
+        #TODO: Replace pip with requirements.txt
         run: |
-          pip install websockets
+          pip install websockets 
           python main.py
