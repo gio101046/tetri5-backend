@@ -61,6 +61,7 @@ jobs:
           slot-name: 'production'
           publish-profile: ${{ secrets.AzureAppService_PublishProfile_ba3d879df28c472d8865f0591c14832f }}
       
-      - name: 'Start web socket'
+      - name: 'Start virtual environment and web socket'
         run: |
+          python -m venv venv
           python main.py
