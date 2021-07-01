@@ -94,7 +94,7 @@ async def init(websocket, path):
         await exit_game(websocket.remote_address[0])
         print("Connection closed...")
 
-start_server = websockets.serve(init, "", 5001)
+start_server = websockets.serve(init, "", int(os.environ["PORT"]))
 #start_server = websockets.serve(init, "localhost", 5001)
 
 asyncio.get_event_loop().run_until_complete(start_server)
