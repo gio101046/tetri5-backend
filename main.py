@@ -82,20 +82,26 @@ def create_game(game_id, player=None):
 async def init(websocket, path):
     try:
         async for message in websocket:
-            data = json.loads(message)
-            if data["action"] == "enter_game":
-                await enter_game(data["gameId"], websocket)
-            elif data["action"] == "send_piece":
-                await send_piece(data["gameId"], websocket, data["piece"])
+            if message == "ping":
+                print(message)
+                await websocket.send("pong")
             else:
-                print("Unsupported action...")
+                data = json.loads(message)
+                if data["action"] == "enter_game":
+                    await enter_game(data["gameId"], websocket)
+                elif data["action"] == "send_piece":
+                    await send_piece(data["gameId"], websocket, data["piece"])
+                else:
+                    print("Unsupported action...")
     finally:
         print("Exiting game...")
         await exit_game(websocket.remote_address[0])
         print("Connection closed...")
 
-start_server = websockets.serve(init, "", int(os.environ["PORT"]))
-#start_server = websockets.serve(init, "localhost", 5001)
+start_server = websockets.serve(init, "", int(os.environ["PORT"]), ping_interval=None)
+#start_server = websockets.serve(init, "localhost", 5001, ping_interval=None)
+# ping_interval=None is important, otherwise the client will disconnect
+# https://stackoverflow.com/a/58993145/11512104
 
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
