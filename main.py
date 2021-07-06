@@ -19,36 +19,36 @@ def start_game_response():
 def exit_game_response():
     return json.dumps({"type": "exit_game"})
 
-def receive_opponent_piece(piece):
-    return json.dumps({"type": "receive_opponent_piece", "piece": piece})
+def receive_piece(piece):
+    return json.dumps({"type": "receive_piece", "piece": piece})
 
 # EVENTS
 
-async def enter_game(game_id, player):
+async def enter_game(game_id, client_id, player):
     """ TODO fix asssumption that there will only be two players per game """
     # if game does not exist, create it
     if game_id not in GAMES:
-        GAMES[game_id] = create_game(game_id, player)
-        message = wait_for_opponent_response()
-        await player.send(message)
+        GAMES[game_id] = create_game(game_id, client_id, player)
+        await player.send(wait_for_opponent_response())
     # if game exists, add player to game if they are not already in it    
-    elif player.remote_address[0] not in map(lambda p: p.remote_address[0], GAMES[game_id]["players"]):
+    elif client_id not in GAMES[game_id]["clients"]:
         GAMES[game_id]["players"].append(player)
-        message = start_game_response()
-        await asyncio.wait([player.send(message) for player in GAMES[game_id]["players"]])
+        GAMES[game_id]["clients"].append(client_id)
+        await asyncio.wait([player.send(start_game_response()) for player in GAMES[game_id]["players"]])
     else:
         print("Already in game...")
 
-async def send_piece(game_id, player, piece):
+async def send_piece(game_id, client_id, player, piece):
     # make sure game exists
     if game_id not in GAMES:
         print("Game does not exist...")
         return
 
     # get opponent player and send piece to opponent player
-    await get_opponent_player(game_id, player.remote_address[0])\
-        .send(receive_opponent_piece(piece))
+    await get_opponent_player(game_id, player)\
+        .send(receive_piece(piece))
 
+# TODO refactor function
 async def exit_game(player_remote_address):
     # get game with player that is disconnecting
     result = list(filter(lambda g: player_remote_address in map(lambda p: p.remote_address[0], g["players"]), GAMES.values()))
@@ -69,28 +69,25 @@ async def exit_game(player_remote_address):
 
 # HELPER FUNCTIONS
 
-def get_opponent_player(game_id, player_remote_address):
-    opponent_player = list(filter(lambda p: p.remote_address[0] != player_remote_address, GAMES[game_id]["players"]))[0];
+def get_opponent_player(game_id, player):
+    opponent_player = list(filter(lambda p: p != player, GAMES[game_id]["players"]))[0];
     return opponent_player    
 
-def create_game(game_id, player=None):
-    print("Creating game...")
-    return {"players": ([player] if player else []), "game_id": game_id}
+def create_game(game_id, client_id=None, player=None):
+    return {"players": ([player] if player else []),\
+            "clients": ([client_id] if client_id else []),\
+            "game_id": game_id}
 
 # --------------------------
 
 async def init(websocket, path):
     try:
         async for message in websocket:
-            if message == "ping":
-                print(message)
-                await websocket.send("pong")
-            else:
                 data = json.loads(message)
                 if data["action"] == "enter_game":
-                    await enter_game(data["gameId"], websocket)
+                    await enter_game(data["gameId"], data["clientId"], websocket)
                 elif data["action"] == "send_piece":
-                    await send_piece(data["gameId"], websocket, data["piece"])
+                    await send_piece(data["gameId"], data["clientId"], websocket, data["piece"])
                 else:
                     print("Unsupported action...")
     finally:
