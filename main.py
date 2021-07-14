@@ -83,13 +83,16 @@ def create_game(game_id, client_id=None, player=None):
 async def init(websocket, path):
     try:
         async for message in websocket:
-                data = json.loads(message)
-                if data["action"] == "enter_game":
-                    await enter_game(data["gameId"], data["clientId"], websocket)
-                elif data["action"] == "send_piece":
-                    await send_piece(data["gameId"], data["clientId"], websocket, data["piece"])
+                if message == "ping":
+                    await websocket.send("pong");
                 else:
-                    print("Unsupported action...")
+                    data = json.loads(message)
+                    if data["action"] == "enter_game":
+                        await enter_game(data["gameId"], data["clientId"], websocket)
+                    elif data["action"] == "send_piece":
+                        await send_piece(data["gameId"], data["clientId"], websocket, data["piece"])
+                    else:
+                        print("Unsupported action...")
     finally:
         print("Exiting game...")
         await exit_game(websocket.remote_address[0])
