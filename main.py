@@ -22,6 +22,9 @@ def exit_game_response():
 def receive_piece(piece):
     return json.dumps({"type": "receive_piece", "piece": piece})
 
+def receive_stack(stack):
+    return json.dumps({"type": "receive_stack", "stack": stack})
+
 # EVENTS
 
 async def enter_game(game_id, client_id, player):
@@ -47,6 +50,16 @@ async def send_piece(game_id, client_id, player, piece):
     # get opponent player and send piece to opponent player
     await get_opponent_player(game_id, player)\
         .send(receive_piece(piece))
+
+async def send_stack(game_id, client_id, player, stack):
+    # make sure game exists
+    if game_id not in GAMES:
+        print("Game does not exist...")
+        return
+
+    # get opponent player and send piece to opponent player
+    await get_opponent_player(game_id, player)\
+        .send(receive_stack(stack))
 
 # TODO refactor function
 async def exit_game(player_remote_address):
@@ -91,6 +104,8 @@ async def init(websocket, path):
                         await enter_game(data["gameId"], data["clientId"], websocket)
                     elif data["action"] == "send_piece":
                         await send_piece(data["gameId"], data["clientId"], websocket, data["piece"])
+                    elif data["action"] == "send_stack":
+                        await send_stack(data["gameId"], data["clientId"], websocket, data["stack"])
                     else:
                         print("Unsupported action...")
     finally:
