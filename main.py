@@ -25,6 +25,9 @@ def receive_piece(piece):
 def receive_stack(stack):
     return json.dumps({"type": "receive_stack", "stack": stack})
 
+def receive_stats(stats):
+    return json.dumps({"type": "receive_stats", "stats": stats})
+
 # EVENTS
 
 async def enter_game(game_id, client_id, player):
@@ -61,11 +64,21 @@ async def send_stack(game_id, client_id, player, stack):
     await get_opponent_player(game_id, player)\
         .send(receive_stack(stack))
 
+async def send_stats(game_id, client_id, player, stats):
+    # make sure game exists
+    if game_id not in GAMES:
+        print("Game does not exist...")
+        return
+
+    # get opponent player and send piece to opponent player
+    await get_opponent_player(game_id, player)\
+        .send(receive_stats(stats))
+
 # TODO refactor function
 async def exit_game(player_remote_address):
     # get game with player that is disconnecting
     result = list(filter(lambda g: player_remote_address in map(lambda p: p.remote_address[0], g["players"]), GAMES.values()))
-    game_with_player = result[0] if len(result) > 0 else None
+    game_with_player = result[0] if result else None
 
     # if game exists, delete game and remove opponent player from game
     if game_with_player:
@@ -73,7 +86,7 @@ async def exit_game(player_remote_address):
 
         # remove opponent player from game
         result = list(filter(lambda p: p.remote_address[0] != player_remote_address, game_with_player["players"]))
-        opponent_player = result[0] if len(result) > 0 else None
+        opponent_player = result[0] if result else None
         if opponent_player:
             message = exit_game_response()
             await opponent_player.send(message)
@@ -83,8 +96,7 @@ async def exit_game(player_remote_address):
 # HELPER FUNCTIONS
 
 def get_opponent_player(game_id, player):
-    opponent_player = list(filter(lambda p: p != player, GAMES[game_id]["players"]))[0];
-    return opponent_player    
+    return list(filter(lambda p: p != player, GAMES[game_id]["players"]))[0]    
 
 def create_game(game_id, client_id=None, player=None):
     return {"players": ([player] if player else []),\
@@ -96,7 +108,7 @@ def create_game(game_id, client_id=None, player=None):
 async def init(websocket, path):
     try:
         async for message in websocket:
-                if message == "ping":
+                if message == "ping": # prevents client from timing out if waiting for opponent
                     await websocket.send("pong");
                 else:
                     data = json.loads(message)
@@ -106,6 +118,8 @@ async def init(websocket, path):
                         await send_piece(data["gameId"], data["clientId"], websocket, data["piece"])
                     elif data["action"] == "send_stack":
                         await send_stack(data["gameId"], data["clientId"], websocket, data["stack"])
+                    elif data["action"] == "send_stats":
+                        await send_stats(data["gameId"], data["clientId"], websocket, data["stats"])
                     else:
                         print("Unsupported action...")
     finally:
